@@ -73,3 +73,23 @@
     padding-right: 1rem;
   }
 }
+/* app/globals.css 맨 아래에 추가 */
+.react-calendar {
+  border: none;
+  border-radius: 0.5rem;
+  box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  padding: 1rem;
+}
+.react-calendar__tile--active {
+  background: #007AFF !important;
+  color: white;
+}
+/* 운동한 날짜에 표시될 점 스타일 */
+.workout-dot {
+  height: 8px;
+  width: 8px;
+  background-color: #007AFF;
+  border-radius: 50%;
+  margin: 0 auto;
+  margin-top: 4px;
+}

@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link";
 import { useState, useEffect } from "react"
 import { Plus, Timer, Trophy, Dumbbell } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -10,7 +11,10 @@ import WorkoutComplete from "@/components/workout-complete"
 import RestTimer from "@/components/rest-timer"
 import RoutineSelector from "@/components/routine-selector"
 import { getExercisesForRoutine } from "@/lib/routines"
-import { Routine } from "@/lib/routines" // Routine 타입을 가져옵니다.
+import { Routine } from "@/lib/routines"
+import { useRouter } from "next/navigation"; // 👈 페이지 이동을 위해 추가
+import { auth, db } from "@/lib/firebase"; // 👈 이미 있다면 OK
+import { collection, addDoc, serverTimestamp } from "firebase/firestore"; // 👈 이미 있다면 OK
 
 // Exercise와 Set 인터페이스는 그대로 둡니다.
 interface Set {
@@ -35,6 +39,7 @@ interface WorkoutSession {
 }
 
 export default function HomePage() { // 👈 여기에 여는 중괄호 '{'가 있어야 합니다.
+  const router = useRouter();
 
   // --- 상태(useState) 선언부 ---
   const [exercises, setExercises] = useState<Exercise[]>([])
@@ -117,9 +122,36 @@ export default function HomePage() { // 👈 여기에 여는 중괄호 '{'가 �
     setRestTimer({ exerciseId, setId })
   }
 
-  const completeWorkout = () => {
-    setShowWorkoutComplete(true)
-  }
+  const completeWorkout = async () => { // 'async' 키워드가 추가되었습니다.
+    // 1. 현재 로그인한 사용자가 있는지 확인합니다.
+    const user = auth.currentUser;
+    if (!user) {
+      alert("운동 기록을 저장하려면 로그인이 필요합니다.");
+      router.push('/login'); // 로그인 페이지로 이동
+      return;
+    }
+  
+    // 2. 데이터베이스에 저장할 운동 기록 데이터를 만듭니다.
+    const workoutData = {
+      userId: user.uid,
+      createdAt: serverTimestamp(),
+      totalTime: calculateWorkoutTime(),
+      totalVolume: calculateTotalVolume(),
+      exercises: exercises,
+    };
+  
+    try {
+      // 3. 'workouts' 라는 이름의 서랍에 데이터를 저장합니다.
+      await addDoc(collection(db, "workouts"), workoutData);
+      
+      // 4. 저장 성공 후, 완료 화면을 보여줍니다.
+      setShowWorkoutComplete(true);
+  
+    } catch (e) {
+      console.error("기록 저장 중 에러: ", e);
+      alert("기록 저장에 실패했습니다. 다시 시도해주세요.");
+    }
+  };
 
   const calculateTotalVolume = () => {
     return exercises.reduce((total, exercise) => {
@@ -142,7 +174,7 @@ export default function HomePage() { // 👈 여기에 여는 중괄호 '{'가 �
     month: "long",
     day: "numeric",
   })
-  
+
   // --- 화면 렌더링 로직 ---
   if (showWorkoutComplete) {
     return (
@@ -185,6 +217,11 @@ export default function HomePage() { // 👈 여기에 여는 중괄호 '{'가 �
           <p className="text-[#007AFF] font-medium mt-1">
             {exercises.length === 0 ? "오늘의 운동을 시작하세요!" : "운동 중입니다 💪"}
           </p>
+          <Link href="/history" passHref>
+  <Button variant="link" className="mt-2">
+    내 운동 기록 보기
+  </Button>
+</Link>
         </div>
 
         {/* 👇 여기가 수정된 버튼 영역입니다 */}
