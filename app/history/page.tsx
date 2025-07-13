@@ -12,7 +12,6 @@ import { ko } from "date-fns/locale"
 import Link from "next/link"
 import 'react-day-picker/dist/style.css';
 
-
 // 타입 정의: 로컬 저장소에 저장될 데이터의 형태
 interface WorkoutSet {
   weight: number;
