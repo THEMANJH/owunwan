@@ -1,4 +1,3 @@
-// app/history/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -15,13 +14,13 @@ import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, TrendingUp, CalendarIcon, Dumbbell } from "lucide-react";
 import { format, startOfMonth, endOfMonth, isWithinInterval } from "date-fns";
 import { ko } from "date-fns/locale";
+import 'react-day-picker/dist/style.css';
+
 
 // --- 데이터 타입 정의 ---
-// Firestore에서 가져올 데이터의 형태를 명확하게 정의합니다.
 interface WorkoutSet {
   weight: number;
   reps: number;
-  completed: boolean;
 }
 interface WorkoutExercise {
   name: string;
@@ -43,12 +42,11 @@ export default function HistoryPage() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
-  const [allWorkouts, setAllWorkouts] = useState<WorkoutSession[]>([]); // 모든 운동 기록 저장
+  const [allWorkouts, setAllWorkouts] = useState<WorkoutSession[]>([]);
   const [monthlyStats, setMonthlyStats] = useState({ totalWorkouts: 0, totalVolume: 0, totalTime: 0 });
 
   // --- 데이터 로직 (useEffect) ---
-
-  // 1. 사용자의 로그인 상태를 감시합니다.
+  // 1. 페이지 로드 시, 가장 먼저 사용자의 로그인 상태를 확인합니다.
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       if (currentUser) {
@@ -56,12 +54,12 @@ export default function HistoryPage() {
       } else {
         router.push("/login");
       }
-      setLoading(false);
+      setLoading(false); // 인증 확인이 끝나면 로딩 상태를 해제합니다.
     });
     return () => unsubscribe();
   }, [router]);
 
-  // 2. 로그인되면, 사용자의 모든 운동 기록을 Firestore에서 딱 한 번만 불러옵니다.
+  // 2. 로그인된 사용자(user)가 확정된 후에만, 모든 운동 기록을 Firestore에서 딱 한 번만 불러옵니다.
   useEffect(() => {
     if (user) {
       const fetchAllWorkouts = async () => {
@@ -75,9 +73,9 @@ export default function HistoryPage() {
       };
       fetchAllWorkouts();
     }
-  }, [user]);
+  }, [user]); // user 상태가 변경될 때만 이 로직이 실행됩니다.
 
-  // 3. 달력이 바뀌거나, 운동 기록이 업데이트될 때마다 '월간 통계'를 다시 계산합니다.
+  // 3. 달력의 월이 바뀌거나, 새로운 운동 기록이 추가될 때마다 '월간 통계'를 다시 계산합니다.
   useEffect(() => {
     if (allWorkouts.length > 0 && selectedDate) {
       const start = startOfMonth(selectedDate);
@@ -95,34 +93,34 @@ export default function HistoryPage() {
         totalVolume,
         totalTime,
       });
+    } else {
+      // 데이터가 없으면 통계를 0으로 초기화합니다.
+      setMonthlyStats({ totalWorkouts: 0, totalVolume: 0, totalTime: 0 });
     }
   }, [selectedDate, allWorkouts]);
 
-
-  // --- 렌더링을 위한 데이터 준비 ---
-
-  // 운동한 날짜들만 뽑아서 달력에 표시할 용도로 만듭니다.
+  // --- 렌더링을 위한 데이터 및 함수 준비 ---
   const workoutDates = allWorkouts.map(w => w.createdAt.toDate());
-
-  // 현재 선택된 날짜에 해당하는 운동 기록을 찾습니다.
   const selectedWorkout = selectedDate ? allWorkouts.find(
     (w) => format(w.createdAt.toDate(), "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
   ) : null;
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    return hours > 0 ? `${hours}시간 ${mins}분` : `${mins}분`;
+  };
 
-  // 로딩 중일 때 보여줄 화면
+  // 로딩 중일 때는 로딩 화면을 보여줍니다.
   if (loading) {
-    return <div className="flex items-center justify-center min-h-screen">로딩 중...</div>;
+    return <div className="flex items-center justify-center min-h-screen">기록을 불러오는 중...</div>;
   }
 
   // --- 최종 화면 (JSX) ---
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
-      {/* 헤더 */}
-      <header className="bg-white shadow-sm border-b sticky top-0 z-10">
+      <header className="bg-white shadow-sm border-b">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
-          <Button variant="ghost" size="icon" onClick={() => router.back()}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
+          <Button variant="ghost" size="icon" onClick={() => router.back()}><ArrowLeft className="h-5 w-5" /></Button>
           <h1 className="text-lg font-semibold">운동 기록</h1>
           <div className="w-10" />
         </div>
@@ -130,18 +128,11 @@ export default function HistoryPage() {
 
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
         {/* 월간 통계 카드 */}
-        <Card>
-            <CardHeader>
-                <CardTitle className="text-base">이번 달 요약</CardTitle>
-            </CardHeader>
-            <CardContent>
-                <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center"><p className="text-xl font-bold">{monthlyStats.totalWorkouts}</p><p className="text-xs text-gray-600">운동 횟수</p></div>
-                    <div className="text-center"><p className="text-xl font-bold">{monthlyStats.totalVolume.toLocaleString()}</p><p className="text-xs text-gray-600">총 볼륨(kg)</p></div>
-                    <div className="text-center"><p className="text-xl font-bold">{monthlyStats.totalTime}</p><p className="text-xs text-gray-600">총 시간(분)</p></div>
-                </div>
-            </CardContent>
-        </Card>
+        <div className="grid grid-cols-3 gap-4">
+          <Card><CardContent className="pt-4 text-center"><CalendarIcon className="h-6 w-6 text-blue-600 mx-auto mb-1" /><p className="text-lg font-bold">{monthlyStats.totalWorkouts}</p><p className="text-xs text-gray-600">이번 달 운동</p></CardContent></Card>
+          <Card><CardContent className="pt-4 text-center"><Dumbbell className="h-6 w-6 text-green-600 mx-auto mb-1" /><p className="text-lg font-bold">{monthlyStats.totalVolume.toLocaleString()}</p><p className="text-xs text-gray-600">총 볼륨 (kg)</p></CardContent></Card>
+          <Card><CardContent className="pt-4 text-center"><TrendingUp className="h-6 w-6 text-purple-600 mx-auto mb-1" /><p className="text-lg font-bold">{formatTime(monthlyStats.totalTime)}</p><p className="text-xs text-gray-600">총 운동시간</p></CardContent></Card>
+        </div>
 
         {/* 캘린더 */}
         <Card>
@@ -162,11 +153,7 @@ export default function HistoryPage() {
 
         {/* 선택된 날짜의 상세 기록 */}
         <Card>
-          <CardHeader>
-            <CardTitle className="text-base">
-              {selectedDate ? format(selectedDate, "M월 d일 (E)", { locale: ko }) : "날짜 선택"} 운동 기록
-            </CardTitle>
-          </CardHeader>
+          <CardHeader><CardTitle className="text-base">{selectedDate ? format(selectedDate, "M월 d일 (E)", { locale: ko }) : "날짜 선택"} 운동 기록</CardTitle></CardHeader>
           <CardContent>
             {selectedWorkout ? (
               <div className="space-y-4">
@@ -176,31 +163,29 @@ export default function HistoryPage() {
                   <div><p className="font-semibold">{selectedWorkout.exercises.length}개</p><p className="text-xs text-gray-500">운동 종목</p></div>
                 </div>
                 <div className="space-y-3">
+                  <h4 className="font-medium">운동 상세:</h4>
                   {selectedWorkout.exercises.map((exercise, index) => (
-                    <div key={index} className="text-sm border-t pt-2">
-                      <div className="flex justify-between font-medium">
-                        <h5>{exercise.name}</h5>
+                    <div key={index} className="border rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-medium">{exercise.name}</h5>
                         <Badge variant="outline">{exercise.sets.length} 세트</Badge>
                       </div>
-                      {exercise.sets.map((set, setIndex) => (
-                        <div key={setIndex} className="text-gray-600 flex justify-between pl-2">
-                          <span>세트 {setIndex + 1}</span>
-                          <span>{set.weight}kg × {set.reps}회</span>
-                        </div>
-                      ))}
+                      <div className="space-y-1">
+                        {exercise.sets.map((set, setIndex) => (
+                          <div key={setIndex} className="text-sm text-gray-600 flex justify-between">
+                            <span>세트 {setIndex + 1}</span>
+                            <span>{set.weight}kg × {set.reps}회</span>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
             ) : (
               <div className="text-center py-8">
-                <p className="text-gray-500 mb-4">이 날은 운동 기록이 없습니다.</p>
-                <Button asChild>
-                  <Link href="/">
-                    <Dumbbell className="h-4 w-4 mr-2" />
-                    운동 기록하러 가기
-                  </Link>
-                </Button>
+                <p className="text-gray-500 mb-4">이 날은 운동 기록이 없습니다</p>
+                <Button asChild><Link href="/"><Dumbbell className="h-4 w-4 mr-2" />운동 기록하기</Link></Button>
               </div>
             )}
           </CardContent>
