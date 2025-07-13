@@ -1,7 +1,10 @@
 "use client"
 
-import Link from "next/link";
 import { useState, useEffect } from "react"
+import { useRouter } from "next/navigation" // 👈 페이지 이동 기능
+import { onAuthStateChanged, User } from "firebase/auth" // 👈 로그인 상태 감지 기능
+import { auth } from "@/lib/firebase" // 👈 우리가 만든 Firebase 연결 통로
+import Link from "next/link";
 import { Plus, Timer, Trophy, Dumbbell } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -12,8 +15,7 @@ import RestTimer from "@/components/rest-timer"
 import RoutineSelector from "@/components/routine-selector"
 import { getExercisesForRoutine } from "@/lib/routines"
 import { Routine } from "@/lib/routines"
-import { useRouter } from "next/navigation"; // 👈 페이지 이동을 위해 추가
-import { auth, db } from "@/lib/firebase"; // 👈 이미 있다면 OK
+import {db} from "@/lib/firebase"; // 👈 이미 있다면 OK
 import { collection, addDoc, serverTimestamp } from "firebase/firestore"; // 👈 이미 있다면 OK
 
 // Exercise와 Set 인터페이스는 그대로 둡니다.
@@ -48,8 +50,28 @@ export default function HomePage() { // 👈 여기에 여는 중괄호 '{'가 �
   const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null)
   const [restTimer, setRestTimer] = useState<{ exerciseId: string; setId: string } | null>(null)
   const [showRoutineSelector, setShowRoutineSelector] = useState(false) // 👈 추가된 상태
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
   // --- useEffect ---
+  useEffect(() => {
+    // onAuthStateChanged: Firebase 서버에 "로그인 상태가 바뀔 때마다 알려줘!" 라고 요청하는 함수
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
+      if (user) {
+        // 사용자가 로그인 되어 있으면, user 상태에 정보를 저장합니다.
+        setUser(user);
+      } else {
+        // 사용자가 로그아웃 상태이면, 바로 로그인 페이지로 쫓아냅니다.
+        router.push('/login');
+      }
+      // 로딩 상태를 false로 바꿔서, 이제 페이지를 보여줄지 결정하라고 알립니다.
+      setLoading(false);
+    });
+
+    // 컴포넌트가 사라질 때 감시를 중단합니다 (메모리 누수 방지)
+    return () => unsubscribe();
+  }, [router]);
+
   useEffect(() => {
     if (exercises.length > 0 && !workoutStartTime) {
       setWorkoutStartTime(new Date())
@@ -174,6 +196,14 @@ export default function HomePage() { // 👈 여기에 여는 중괄호 '{'가 �
     month: "long",
     day: "numeric",
   })
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <p>로딩 중...</p>
+      </div>
+    );
+  }
 
   // --- 화면 렌더링 로직 ---
   if (showWorkoutComplete) {
