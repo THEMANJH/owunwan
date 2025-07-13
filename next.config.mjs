@@ -1,8 +1,8 @@
+// next.config.mjs - 수정 후
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    appDir: true,
-  },
+  // experimental 블록만 삭제되었습니다.
   eslint: {
     ignoreDuringBuilds: true,
   },
