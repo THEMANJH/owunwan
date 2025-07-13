@@ -40,7 +40,7 @@ export default function ProfilePage() {
       await signOut(auth)
       toast({
         title: "로그아웃 완료",
-        description: "안전하게 로그아웃되었습니다",
+        description: "안전하게 로그아웃웃 되었습니다",
       })
       router.push("/login")
     } catch (error) {
@@ -206,7 +206,7 @@ export default function ProfilePage() {
           <CardContent className="pt-6">
             <div className="text-center text-sm text-gray-500">
               <p>오운완 v1.0.0</p>
-              <p className="mt-1">건강한 운동 습관을 만들어보세요</p>
+              <p className="mt-1">건강한 운동 습관을 엄청나게 만들어보세요</p>
             </div>
           </CardContent>
         </Card>
