@@ -1,23 +1,16 @@
-// lib/firebase.ts
+import { initializeApp } from "firebase/app"
+import { getAuth } from "firebase/auth"
+import { getFirestore } from "firebase/firestore"
 
-import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
-
-// 1. Firebase 콘솔에서 복사한 내 프로젝트의 설정 정보
 const firebaseConfig = {
-  apiKey: "AIzaSyAcbLXwbkESByPpJXwJT10HlJ0PbS90vaw",
-  authDomain: "owunwan-76342.firebaseapp.com",
-  projectId: "owunwan-76342",
-  storageBucket: "owunwan-76342.appspot.com",
-  messagingSenderId: "528656987201",
-  appId: "1:528656987201:web:ec94b927f0ce49c2f502c0",
-  measurementId: "G-PLWGPRE3X6"
-};
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "demo-api-key",
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "demo-project.firebaseapp.com",
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "demo-project",
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "demo-project.appspot.com",
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "123456789",
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "1:123456789:web:abcdef",
+}
 
-// 2. Firebase 앱 초기화 (이미 초기화되었다면 기존 앱을 사용)
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApps()[0];
-
-// 3. 다른 파일에서 쓸 수 있도록 auth(인증)와 db(데이터베이스)를 내보내기
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+const app = initializeApp(firebaseConfig)
+export const auth = getAuth(app)
+export const db = getFirestore(app)
