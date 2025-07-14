@@ -101,7 +101,7 @@ export default function HomePage() {
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Dumbbell className="h-6 w-6 text-blue-600" />
-            <h1 className="text-xl font-bold text-gray-900">오운완</h1>
+            <h1 className="text-xl font-bold text-gray-900">최명희</h1>
           </div>
           <Link href="/profile">
             <Button variant="ghost" size="sm">
@@ -116,7 +116,7 @@ export default function HomePage() {
         <Card>
           <CardContent className="pt-6 text-center">
             <h2 className="text-lg font-semibold text-gray-900 mb-2">
-              안녕하세요, 오운완 님! 💪
+              안녕하세요, 최명희 님! 💪
             </h2>
             <p className="text-sm text-gray-600">오늘도 건강한 하루 만들어보세요</p>
           </CardContent>
