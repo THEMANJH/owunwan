@@ -8,7 +8,7 @@ export interface Exercise {
   }
   
   // 앱에서 사용할 전체 운동 목록입니다.
-  export const EXERCISE_LIST: LibExercise[] = [
+  export const EXERCISE_LIST: Exercise[] = [
     { id: 'bench-press', name: '벤치프레스', category: '가슴' },
     { id: 'incline-press', name: '인클라인 벤치프레스', category: '가슴' },
     { id: 'dips', name: '딥스', category: '가슴' },

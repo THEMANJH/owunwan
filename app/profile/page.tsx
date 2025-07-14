@@ -3,8 +3,6 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-
-// UI 컴포넌트들은 모두 그대로 사용합니다.
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -23,8 +21,12 @@ export default function ProfilePage() {
   const router = useRouter();
   const { toast } = useToast();
 
-  // --- 상태 관리 ---
-  // 통계 데이터를 저장할 상태. 초기값은 0입니다.
+  // 1. 이름 상태 관리
+  const [name, setName] = useState("오운완 님");
+  const [edit, setEdit] = useState(false);
+  const [input, setInput] = useState("");
+
+  // 2. 통계 상태 관리
   const [stats, setStats] = useState({
     totalWorkouts: 0,
     totalDays: 0,
@@ -32,8 +34,13 @@ export default function ProfilePage() {
     totalVolume: 0,
   });
 
-  // --- 데이터 로직 ---
-  // 페이지가 로드될 때 로컬 저장소에서 운동 기록을 가져와 '진짜 통계'를 계산합니다.
+  // 3. 이름 localStorage에서 불러오기
+  useEffect(() => {
+    const saved = localStorage.getItem("userName");
+    if (saved) setName(saved);
+  }, []);
+
+  // 4. 운동 기록 통계 계산
   useEffect(() => {
     try {
       const savedWorkouts: WorkoutSession[] = JSON.parse(localStorage.getItem('workouts') || '[]');
@@ -65,10 +72,16 @@ export default function ProfilePage() {
         variant: "destructive",
       });
     }
-  }, [toast]); // toast를 의존성 배열에 추가합니다.
+  }, [toast]);
 
+  // 5. 이름 저장 함수
+  const handleSave = () => {
+    setName(input);
+    localStorage.setItem("userName", input);
+    setEdit(false);
+  };
 
-  // 공유하기 기능은 그대로 유지합니다.
+  // 6. 공유하기 기능 (기존 코드 그대로)
   const handleShare = async () => {
     const shareText = `오운완으로 ${stats.totalDays}일 동안 ${stats.totalWorkouts}번 운동했어요! 💪\n\n총 볼륨: ${stats.totalVolume.toLocaleString()}kg\n\n#오운완 #운동기록 #헬스`;
 
@@ -85,6 +98,8 @@ export default function ProfilePage() {
       }
     }
   };
+
+  // ...이하 JSX 리턴부
 
   // --- 최종 화면 (JSX) ---
   return (
@@ -103,21 +118,59 @@ export default function ProfilePage() {
       <div className="max-w-md mx-auto px-4 py-6 space-y-6">
         {/* User Info - 로그인 정보 대신 고정된 정보를 보여줍니다. */}
         <Card>
-          <CardContent className="pt-6">
-            <div className="flex items-center space-x-4">
-              <Avatar className="h-16 w-16">
-                <AvatarImage src="/placeholder-user.jpg" alt="프로필 이미지" />
-                <AvatarFallback>
-                  <User className="h-8 w-8" />
-                </AvatarFallback>
-              </Avatar>
-              <div className="flex-1">
-                <h2 className="text-xl font-semibold text-gray-900">오운완 님</h2>
-                <p className="text-sm text-gray-600 mt-1">오늘도 최고의 하루를 만드세요!</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+  <CardContent className="pt-6">
+    <div className="flex items-center space-x-4">
+      <Avatar className="h-16 w-16">
+        <AvatarImage src="/placeholder-user.jpg" alt="프로필 이미지" />
+        <AvatarFallback>
+          <User className="h-8 w-8" />
+        </AvatarFallback>
+      </Avatar>
+      <div className="flex-1">
+        {/* ✅ 이름/수정 UI */}
+        {!edit ? (
+          <>
+            <h2 className="text-xl font-semibold text-gray-900">{name}</h2>
+            <button
+              className="text-blue-500 text-xs underline mt-1"
+              onClick={() => {
+                setInput(name === "오운완 님" ? "" : name);
+                setEdit(true);
+              }}
+            >
+              이름 수정
+            </button>
+          </>
+        ) : (
+          <div className="flex gap-2 items-center mt-1">
+            <input
+              value={input}
+              onChange={e => setInput(e.target.value)}
+              className="border px-2 py-1 rounded text-sm"
+              placeholder="이름을 입력하세요"
+              autoFocus
+            />
+            <button
+              onClick={handleSave}
+              className="bg-blue-500 text-white px-3 py-1 rounded text-xs"
+              disabled={!input.trim()}
+            >
+              저장
+            </button>
+            <button
+              onClick={() => setEdit(false)}
+              className="text-gray-400 text-xs"
+            >
+              취소
+            </button>
+          </div>
+        )}
+        <p className="text-sm text-gray-600 mt-1">오늘도 최고의 하루를 만드세요!</p>
+      </div>
+    </div>
+  </CardContent>
+</Card>
+
 
         {/* Stats - 이제 진짜 데이터가 표시됩니다. */}
         <Card>

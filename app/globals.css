@@ -6,12 +6,14 @@ body {
   font-family: Arial, Helvetica, sans-serif;
 }
 
+/* 유틸리티 */
 @layer utilities {
   .text-balance {
     text-wrap: balance;
   }
 }
 
+/* 색상/테마 커스텀 */
 @layer base {
   :root {
     --background: 0 0% 100%;
@@ -84,6 +86,7 @@ body {
   }
 }
 
+/* 공통 바디 배경/글씨 */
 @layer base {
   * {
     @apply border-border;
@@ -93,43 +96,67 @@ body {
   }
 }
 
-/* --- 캘린더 반응형 & 색상 커스텀 --- */
+/* --- 캘린더 스타일 (DayPicker) --- */
 .rdp {
   width: 100%;
   max-width: 400px;
   margin: 0 auto;
-  font-size: 1rem;
   background: white;
-  border-radius: 1rem;
-  overflow: hidden;
+  border-radius: 1.2rem;
+  padding: 1.5rem 0 1rem 0;
+  box-shadow: 0 2px 8px 0 #0001;
+  font-size: 1rem;
 }
 @media (max-width: 500px) {
   .rdp {
-    font-size: 0.92rem;
+    font-size: 0.97rem;
     min-width: 100%;
     border-radius: 0.8rem;
   }
 }
-.rdp-day_today {
-  background: #3b82f6 !important;
-  color: #fff !important;
-  border-radius: 100% !important;
-  font-weight: bold;
-}
-.rdp-day_selected {
-  background: #22c55e !important;
-  color: #fff !important;
-  border-radius: 100% !important;
-  font-weight: bold;
-}
-.rdp-day_workout {
-  background: #2563eb !important;
-  color: #fff !important;
-  border-radius: 100% !important;
-  font-weight: bold;
-}
 .rdp-caption_label {
-  font-weight: 700 !important;
+  font-weight: 700;
   font-size: 1.1rem;
   letter-spacing: 0.02em;
+}
+.rdp-head_cell {
+  font-weight: 700;
+  color: #909090;
+  font-size: 0.97rem;
+  padding-bottom: 2px;
+}
+.rdp-day_selected {
+  background: #2563eb !important;
+  color: #fff !important;
+  border-radius: 12px !important;
+  font-weight: bold;
+}
+.rdp-day_today {
+  border: 2px solid #2563eb !important;
+  color: #2563eb !important;
+  border-radius: 12px !important;
+  font-weight: bold;
+  background: #f3f8ff !important;
+}
+.rdp-day_outside, .rdp-day_disabled {
+  color: #e5e7eb !important;
+}
+.rdp-day {
+  transition: background 0.2s;
+}
+.rdp-day:not(.rdp-day_selected):not(.rdp-day_disabled):hover {
+  background: #f0f6ff !important;
+  color: #17509e !important;
+}
+
+/* --- 운동한 날 파란 점 (workout) --- */
+.my-workout-dot::after {
+  content: '';
+  display: block;
+  margin: 0 auto;
+  margin-top: 2px;
+  width: 6px;
+  height: 6px;
+  border-radius: 9999px;
+  background: #2563eb;
 }
