@@ -83,7 +83,7 @@ export default function HomePage() {
     // 운동 기록 페이지로 이동하는 로직은 그대로 유지합니다.
     // 이 부분은 당신의 운동 기록 페이지 (예: /workout)가 구현되어야 합니다.
     // 지금은 메인 페이지로 이동하도록 설정합니다.
-    router.push("/"); 
+    router.push("/workout"); 
   };
   
   if (loading) {
@@ -131,15 +131,15 @@ export default function HomePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              locale={ko}
-              className="rounded-md border"
-              modifiers={{ workout: workoutDates }}
-              modifiersStyles={{ workout: { backgroundColor: "#3b82f6", color: "white" } }}
-            />
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={(date) => date && setSelectedDate(date)}
+            locale={ko}
+            className="shadow-sm"
+            modifiers={{ workout: workoutDates }}
+            modifiersClassNames={{ workout: "rdp-day_workout" }}
+/>
             <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
               <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
               <span>운동한 날</span>

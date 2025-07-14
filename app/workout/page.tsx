@@ -1,199 +1,202 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { Calendar } from "@/components/ui/calendar"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { CalendarDays, Dumbbell, TrendingUp, UserIcon } from "lucide-react"
-import { format, parseISO, startOfMonth, endOfMonth, isWithinInterval } from "date-fns"
-import { ko } from "date-fns/locale"
-import Link from "next/link"
-import 'react-day-picker/dist/style.css';
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
-// 타입 정의: 로컬 저장소에 저장될 데이터의 형태
-interface WorkoutSet {
+// UI 컴포넌트
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { ArrowLeft, Plus, Trophy } from "lucide-react";
+
+// 당신이 만든 커스텀 컴포넌트들을 모두 가져옵니다.
+import ExerciseSelector from "@/components/exercise-selector";
+import RoutineSelector from "@/components/routine-selector";
+import RestTimer from "@/components/rest-timer";
+import WorkoutComplete from "@/components/workout-complete";
+
+// lib 파일 (루틴, 운동 목록 등)
+import { getExercisesForRoutine, Routine } from "@/lib/routines";
+
+// --- 데이터 타입 정의 ---
+interface Set {
+  id: string;
   weight: number;
   reps: number;
+  completed: boolean;
 }
-interface WorkoutExercise {
+interface Exercise {
+  id: string;
   name: string;
-  sets: WorkoutSet[];
-}
-interface WorkoutSession {
-  createdAt: string;
-  totalTime: number;
-  totalVolume: number;
-  exercises: WorkoutExercise[];
+  sets: Set[];
 }
 
-export default function HomePage() {
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date())
-  const [allWorkouts, setAllWorkouts] = useState<WorkoutSession[]>([])
-  const [monthlyStats, setMonthlyStats] = useState({
-    totalWorkouts: 0,
-    totalVolume: 0,
-    // 기존 코드의 totalTime을 유지하기 위해 포함
-    totalTime: 0, 
-  })
-  const router = useRouter()
+// --- 메인 운동 페이지 컴포넌트 ---
+export default function WorkoutPage() {
+  const router = useRouter();
 
-  // 1. 페이지가 처음 열릴 때, 로컬 저장소에서 모든 운동 기록을 딱 한 번만 불러옵니다.
+  // --- 상태 관리 (State) ---
+  const [exercises, setExercises] = useState<Exercise[]>([]);
+  const [showExerciseSelector, setShowExerciseSelector] = useState(false);
+  const [showRoutineSelector, setShowRoutineSelector] = useState(false);
+  const [showWorkoutComplete, setShowWorkoutComplete] = useState(false);
+  const [showRestTimer, setShowRestTimer] = useState(false);
+  const [workoutStartTime, setWorkoutStartTime] = useState<Date | null>(null);
+
+  // --- 데이터 로직 (useEffect) ---
   useEffect(() => {
+    if (exercises.length > 0 && !workoutStartTime) {
+      setWorkoutStartTime(new Date());
+    }
+  }, [exercises, workoutStartTime]);
+
+  // --- 핸들러 함수들 ---
+  const handleSelectExercise = (exerciseName: string) => {
+    const newExercise: Exercise = {
+      id: `${exerciseName}-${Date.now()}`,
+      name: exerciseName,
+      sets: [{ id: Date.now().toString(), weight: 0, reps: 0, completed: false }],
+    };
+    if (!exercises.some(ex => ex.name === newExercise.name)) {
+      setExercises([...exercises, newExercise]);
+    }
+    setShowExerciseSelector(false);
+  };
+
+  const handleSelectRoutine = (routine: Routine) => {
+    const routineExercises = getExercisesForRoutine(routine.id);
+    const newExercises: Exercise[] = routineExercises.map(ex => ({
+      id: ex.id,
+      name: ex.name,
+      sets: [{ id: Date.now().toString(), weight: 0, reps: 0, completed: false }],
+    }));
+    setExercises(newExercises);
+    setShowRoutineSelector(false);
+  };
+  
+  const addSet = (exerciseId: string) => {
+    const newSet: Set = { id: Date.now().toString(), weight: 0, reps: 0, completed: false };
+    setExercises(
+      exercises.map(ex => (ex.id === exerciseId ? { ...ex, sets: [...ex.sets, newSet] } : ex))
+    );
+  };
+
+  const updateSet = (exerciseId: string, setId: string, field: "weight" | "reps", value: number) => {
+    setExercises(
+      exercises.map(ex =>
+        ex.id === exerciseId
+          ? { ...ex, sets: ex.sets.map(set => (set.id === setId ? { ...set, [field]: value } : set)) }
+          : ex
+      )
+    );
+  };
+
+  const completeSet = (exerciseId: string, setId: string) => {
+    setExercises(
+      exercises.map(ex =>
+        ex.id === exerciseId
+          ? { ...ex, sets: ex.sets.map(set => (set.id === setId ? { ...set, completed: true } : set)) }
+          : ex
+      )
+    );
+    setShowRestTimer(true); // 세트 완료 시 휴식 타이머 표시
+  };
+
+  const completeWorkout = () => {
+    const workoutData = {
+      createdAt: new Date().toISOString(),
+      totalTime: calculateWorkoutTime(),
+      totalVolume: calculateTotalVolume(),
+      exercises: exercises,
+    };
     try {
-      const savedWorkouts = JSON.parse(localStorage.getItem('workouts') || '[]');
-      setAllWorkouts(savedWorkouts);
-    } catch (error) {
-      console.error("로컬 저장소에서 기록을 불러오는 중 오류 발생:", error);
+      const existingWorkouts = JSON.parse(localStorage.getItem('workouts') || '[]');
+      const updatedWorkouts = [...existingWorkouts, workoutData];
+      localStorage.setItem('workouts', JSON.stringify(updatedWorkouts));
+      setShowWorkoutComplete(true);
+    } catch (e) {
+      console.error("로컬 저장소에 기록 저장 중 에러: ", e);
+      alert("기록 저장에 실패했습니다.");
     }
-  }, []);
+  };
 
-  // 2. 달력의 월이 바뀌거나, 운동 기록이 업데이트될 때마다 '월간 통계'를 다시 계산합니다.
-  useEffect(() => {
-    if (allWorkouts.length > 0) {
-      const start = startOfMonth(selectedDate);
-      const end = endOfMonth(selectedDate);
-      
-      const monthlyWorkouts = allWorkouts.filter(workout => 
-        isWithinInterval(parseISO(workout.createdAt), { start, end })
-      );
-      const totalVolume = monthlyWorkouts.reduce((sum, workout) => sum + workout.totalVolume, 0);
+  // 계산 함수들
+  const calculateTotalVolume = () => exercises.reduce((total, ex) => total + ex.sets.reduce((exTotal, set) => exTotal + (set.completed ? set.weight * set.reps : 0), 0), 0);
+  const calculateWorkoutTime = () => workoutStartTime ? Math.floor((new Date().getTime() - workoutStartTime.getTime()) / 1000 / 60) : 0;
 
-      // Quick Stats 카드에 표시될 데이터를 업데이트합니다.
-      setMonthlyStats(prevStats => ({
-        ...prevStats,
-        totalWorkouts: monthlyWorkouts.length,
-        totalVolume,
-      }));
-    }
-  }, [selectedDate, allWorkouts]);
+  // --- 화면 렌더링 (JSX) ---
 
-
-  // 렌더링을 위한 데이터 준비
-  const workoutDates = allWorkouts.map(w => parseISO(w.createdAt));
-  const selectedWorkout = allWorkouts.find(
-    (w) => format(parseISO(w.createdAt), "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
-  ) || null;
-
-  const handleStartWorkout = () => {
-    // 실제 운동 기록 페이지는 메인 페이지(/)로 가정합니다.
-    router.push(`/`)
+  // 1. 운동 완료 화면
+  if (showWorkoutComplete) {
+    return <WorkoutComplete exercises={exercises} totalTime={calculateWorkoutTime()} totalVolume={calculateTotalVolume()} onBack={() => setShowWorkoutComplete(false)} onNewWorkout={() => router.push('/')} />;
+  }
+  
+  // 2. 운동 선택 화면
+  if (showExerciseSelector) {
+    return <ExerciseSelector onSelect={handleSelectExercise} onBack={() => setShowExerciseSelector(false)} />;
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 pb-20">
-      {/* Header */}
-      <header className="bg-white shadow-sm border-b">
-        <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Dumbbell className="h-6 w-6 text-blue-600" />
-            <h1 className="text-xl font-bold text-gray-900">오운완</h1>
-          </div>
-          <Link href="/profile">
-            <Button variant="ghost" size="sm">
-              <UserIcon className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
-      </header>
-
-      <div className="max-w-md mx-auto px-4 py-6 space-y-6">
-        {/* Welcome Message */}
-        <Card>
-          <CardContent className="pt-6">
-            <div className="text-center">
-              <h2 className="text-lg font-semibold text-gray-900 mb-2">
-                안녕하세요, 오운완 님! 💪
-              </h2>
-              <p className="text-sm text-gray-600">오늘도 건강한 하루 만들어보세요</p>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Calendar */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <CalendarDays className="h-5 w-5" />
-              운동 캘린더
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={(date) => date && setSelectedDate(date)}
-              locale={ko}
-              className="rounded-md border"
-              modifiers={{ workout: workoutDates }}
-              modifiersStyles={{ workout: { backgroundColor: "#3b82f6", color: "white" } }}
-            />
-            <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
-              <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
-              <span>운동한 날</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Selected Date Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{format(selectedDate, "M월 d일 (E)", { locale: ko })} 운동 기록</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedWorkout ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-600">총 운동 시간</span><Badge variant="secondary">{selectedWorkout.totalTime}분</Badge></div>
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-600">총 볼륨</span><Badge variant="secondary">{selectedWorkout.totalVolume.toLocaleString()}kg</Badge></div>
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-600">운동 종목</span><Badge variant="secondary">{selectedWorkout.exercises.length}개</Badge></div>
-                <div className="pt-2">
-                  <h4 className="text-sm font-medium mb-2">운동 목록:</h4>
-                  <div className="space-y-1">
-                    {selectedWorkout.exercises.map((exercise, index) => (
-                      <div key={index} className="text-sm text-gray-600">• {exercise.name} ({exercise.sets.length}세트)</div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-500 mb-4">이 날은 운동 기록이 없습니다</p>
-                <Button onClick={handleStartWorkout} className="w-full"><Dumbbell className="h-4 w-4 mr-2" />운동 시작하기</Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{monthlyStats.totalWorkouts}</p>
-              <p className="text-sm text-gray-600">이번 달 운동일</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <Dumbbell className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{monthlyStats.totalVolume.toLocaleString()}</p>
-              <p className="text-sm text-gray-600">총 볼륨 (kg)</p>
-            </CardContent>
-          </Card>
-        </div>
+  // 3. 루틴 선택 화면
+  if (showRoutineSelector) {
+    return (
+      <div className="p-4">
+        <Button onClick={() => setShowRoutineSelector(false)} variant="ghost" size="icon" className="mb-4"><ArrowLeft /></Button>
+        <RoutineSelector onSelect={handleSelectRoutine} />
       </div>
+    );
+  }
 
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t">
-        <div className="max-w-md mx-auto px-4 py-2">
-          <div className="flex justify-around">
-            <Link href="/" className="flex flex-col items-center py-2 text-blue-600"><CalendarDays className="h-5 w-5" /><span className="text-xs mt-1">홈</span></Link>
-            <Link href="/history" className="flex flex-col items-center py-2 text-gray-400"><TrendingUp className="h-5 w-5" /><span className="text-xs mt-1">기록</span></Link>
-            <Link href="/profile" className="flex flex-col items-center py-2 text-gray-400"><UserIcon className="h-5 w-5" /><span className="text-xs mt-1">프로필</span></Link>
-          </div>
+  // 4. 기본 운동 기록 화면
+  return (
+    <div className="min-h-screen bg-gray-50">
+      {/* 휴식 타이머는 조건부로 화면 전체를 덮습니다. */}
+      {showRestTimer && <RestTimer onComplete={() => setShowRestTimer(false)} onSkip={() => setShowRestTimer(false)} />}
+
+      <div className="container mx-auto max-w-md p-4">
+        <header className="flex items-center justify-between mb-4">
+          <Button variant="ghost" size="icon" onClick={() => router.push('/')}><ArrowLeft /></Button>
+          <h1 className="text-xl font-bold">오늘의 운동</h1>
+          <div className="w-10"></div>
+        </header>
+
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Button onClick={() => setShowRoutineSelector(true)} className="w-full">루틴 불러오기</Button>
+          <Button onClick={() => setShowExerciseSelector(true)} variant="outline" className="w-full">개별 운동 추가</Button>
         </div>
-      </nav>
+
+        <div className="space-y-4 pb-24">
+          {exercises.length === 0 && (
+            <div className="text-center py-10 text-gray-500"><p>운동을 추가하여 기록을 시작하세요!</p></div>
+          )}
+          {exercises.map((exercise) => (
+            <Card key={exercise.id}>
+              <CardHeader><CardTitle>{exercise.name}</CardTitle></CardHeader>
+              <CardContent className="space-y-3">
+                {exercise.sets.map((set, index) => (
+                  <div key={set.id} className="flex items-center gap-2 p-2 bg-gray-100 rounded-md">
+                    <span className="w-8 text-center font-mono text-sm">{index + 1}</span>
+                    <Input type="number" placeholder="kg" onChange={(e) => updateSet(exercise.id, set.id, "weight", Number(e.target.value))} disabled={set.completed} />
+                    <span className="text-gray-400">X</span>
+                    <Input type="number" placeholder="회" onChange={(e) => updateSet(exercise.id, set.id, "reps", Number(e.target.value))} disabled={set.completed} />
+                    <Button size="sm" onClick={() => completeSet(exercise.id, set.id)} disabled={set.completed}>
+                      {set.completed ? '✓' : '완료'}
+                    </Button>
+                  </div>
+                ))}
+                <Button variant="secondary" onClick={() => addSet(exercise.id)} className="w-full"><Plus className="w-4 h-4 mr-2" />세트 추가</Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        
+        {exercises.length > 0 && exercises.some(ex => ex.sets.some(s => s.completed)) && (
+          <div className="fixed bottom-4 left-1/2 -translate-x-1/2 w-full max-w-md px-4">
+            <Button size="lg" onClick={completeWorkout} className="w-full h-14 text-lg shadow-lg">
+              <Trophy className="w-5 h-5 mr-2" /> 운동 완료!
+            </Button>
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }
