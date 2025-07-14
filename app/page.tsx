@@ -46,6 +46,9 @@ export default function HomePage() {
     totalVolume: 0,
   });
   const router = useRouter();
+  const [editMode, setEditMode] = useState(false);
+  const [editWorkout, setEditWorkout] = useState<WorkoutSession | null>(null);
+
 
   // --- 데이터 로직 ---
   // 1. 페이지가 처음 열릴 때, 로컬 저장소에서 모든 운동 기록을 딱 한 번만 불러옵니다.
@@ -64,8 +67,8 @@ export default function HomePage() {
     if (allWorkouts.length > 0) {
       const start = startOfMonth(selectedDate);
       const end = endOfMonth(selectedDate);
-      
-      const monthlyWorkouts = allWorkouts.filter(workout => 
+
+      const monthlyWorkouts = allWorkouts.filter(workout =>
         isWithinInterval(parseISO(workout.createdAt), { start, end })
       );
 
@@ -88,9 +91,9 @@ export default function HomePage() {
     // 운동 기록 페이지로 이동하는 로직은 그대로 유지합니다.
     // 이 부분은 당신의 운동 기록 페이지 (예: /workout)가 구현되어야 합니다.
     // 지금은 메인 페이지로 이동하도록 설정합니다.
-    router.push("/workout"); 
+    router.push("/workout");
   };
-  
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -101,6 +104,93 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
+      {editMode && editWorkout && (
+        <div className="fixed inset-0 bg-black/40 z-50 flex items-center justify-center">
+          <div className="bg-white p-6 rounded-lg max-w-md w-full">
+            <h3 className="text-lg font-bold mb-4">운동 기록 수정</h3>
+            {editWorkout.exercises.map((ex, i) => (
+              <div key={i} className="mb-2">
+                <div className="font-semibold">{ex.name}</div>
+                {ex.sets.map((set, j) => (
+                  <div key={j} className="flex gap-2 mb-1">
+                    <input
+                      type="number"
+                      value={set.weight}
+                      onChange={e => {
+                        const newWeight = Number(e.target.value);
+                        setEditWorkout(prev => {
+                          if (!prev) return prev;
+                          const copy = { ...prev };
+                          copy.exercises = copy.exercises.map((e, ei) =>
+                            ei === i
+                              ? {
+                                ...e,
+                                sets: e.sets.map((s, si) =>
+                                  si === j ? { ...s, weight: newWeight } : s
+                                ),
+                              }
+                              : e
+                          );
+                          return copy;
+                        });
+                      }}
+                      className="border w-16 px-2"
+                    />
+                    <input
+                      type="number"
+                      value={set.reps}
+                      onChange={e => {
+                        const newReps = Number(e.target.value);
+                        setEditWorkout(prev => {
+                          if (!prev) return prev;
+                          const copy = { ...prev };
+                          copy.exercises = copy.exercises.map((e, ei) =>
+                            ei === i
+                              ? {
+                                ...e,
+                                sets: e.sets.map((s, si) =>
+                                  si === j ? { ...s, reps: newReps } : s
+                                ),
+                              }
+                              : e
+                          );
+                          return copy;
+                        });
+                      }}
+                      className="border w-16 px-2"
+                    />
+                    <span className="text-xs text-gray-400">kg / reps</span>
+                  </div>
+                ))}
+              </div>
+            ))}
+            <div className="flex gap-2 mt-4">
+              <button
+                className="bg-blue-600 text-white rounded px-4 py-2"
+                onClick={() => {
+                  // 저장: localStorage에 반영
+                  const workouts = JSON.parse(localStorage.getItem('workouts') || '[]');
+                  const idx = workouts.findIndex((w: WorkoutSession) =>
+                    w.createdAt === editWorkout.createdAt
+                  );
+                  if (idx >= 0) {
+                    workouts[idx] = editWorkout;
+                    localStorage.setItem('workouts', JSON.stringify(workouts));
+                  }
+                  setEditMode(false);
+                  window.location.reload(); // 새로고침해서 반영
+                }}
+              >
+                저장
+              </button>
+              <button className="text-gray-500 px-4 py-2" onClick={() => setEditMode(false)}>
+                취소
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="bg-white shadow-sm border-b">
         <div className="max-w-md mx-auto px-4 py-4 flex items-center justify-between">
@@ -136,15 +226,15 @@ export default function HomePage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-          <Calendar
-            mode="single"
-            selected={selectedDate}
-            onSelect={(date) => date && setSelectedDate(date)}
-            locale={ko}
-            className="shadow-sm"
-            modifiers={{ workout: workoutDates }}
-            modifiersClassNames={{ workout: "rdp-day_workout" }}
-/>
+            <Calendar
+              mode="single"
+              selected={selectedDate}
+              onSelect={(date) => date && setSelectedDate(date)}
+              locale={ko}
+              className="shadow-sm"
+              modifiers={{ workout: workoutDates }}
+              modifiersClassNames={{ workout: "rdp-day_workout" }}
+            />
             <div className="mt-4 flex items-center gap-2 text-sm text-gray-600">
               <div className="w-3 h-3 bg-blue-600 rounded-full"></div>
               <span>운동한 날</span>
@@ -153,63 +243,95 @@ export default function HomePage() {
         </Card>
 
         {/* Selected Date Info */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">{format(selectedDate, "M월 d일 (E)", { locale: ko })} 운동 기록</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {selectedWorkout ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-600">총 운동 시간</span><Badge variant="secondary">{selectedWorkout.totalTime}분</Badge></div>
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-600">총 볼륨</span><Badge variant="secondary">{selectedWorkout.totalVolume.toLocaleString()}kg</Badge></div>
-                <div className="flex items-center justify-between"><span className="text-sm text-gray-600">운동 종목</span><Badge variant="secondary">{selectedWorkout.exercises.length}개</Badge></div>
-                <div className="pt-2">
-                  <h4 className="text-sm font-medium mb-2">운동 목록:</h4>
-                  <div className="space-y-1">
-                    {selectedWorkout.exercises.map((exercise, index) => (
-                      <div key={index} className="text-sm text-gray-600">• {exercise.name} ({exercise.sets.length}세트)</div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <p className="text-sm text-gray-500 mb-4">이 날은 운동 기록이 없습니다</p>
-                <Button onClick={handleStartWorkout} className="w-full"><Dumbbell className="h-4 w-4 mr-2" />운동 시작하기</Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{monthlyStats.totalWorkouts}</p>
-              <p className="text-sm text-gray-600">이번 달 운동일</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="pt-6 text-center">
-              <Dumbbell className="h-8 w-8 text-blue-600 mx-auto mb-2" />
-              <p className="text-2xl font-bold text-gray-900">{monthlyStats.totalVolume.toLocaleString()}</p>
-              <p className="text-sm text-gray-600">이번 달 총 볼륨 (kg)</p>
-            </CardContent>
-          </Card>
+<Card>
+  <CardHeader>
+    <CardTitle className="text-base">
+      {format(selectedDate, "M월 d일 (E)", { locale: ko })} 운동 기록
+    </CardTitle>
+  </CardHeader>
+  <CardContent>
+    {selectedWorkout ? (
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">총 운동 시간</span>
+          <Badge variant="secondary">{selectedWorkout.totalTime}분</Badge>
         </div>
-      </div>
-
-      {/* Bottom Navigation */}
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t">
-        <div className="max-w-md mx-auto px-4 py-2">
-          <div className="flex justify-around">
-            <Link href="/" className="flex flex-col items-center py-2 text-blue-600"><CalendarDays className="h-5 w-5" /><span className="text-xs mt-1">홈</span></Link>
-            <Link href="/history" className="flex flex-col items-center py-2 text-gray-400"><TrendingUp className="h-5 w-5" /><span className="text-xs mt-1">기록</span></Link>
-            <Link href="/profile" className="flex flex-col items-center py-2 text-gray-400"><UserIcon className="h-5 w-5" /><span className="text-xs mt-1">프로필</span></Link>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">총 볼륨</span>
+          <Badge variant="secondary">
+            {selectedWorkout.totalVolume.toLocaleString()}kg
+          </Badge>
+        </div>
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-gray-600">운동 종목</span>
+          <Badge variant="secondary">
+            {selectedWorkout.exercises.length}개
+          </Badge>
+        </div>
+        <div className="pt-2">
+          <h4 className="text-sm font-medium mb-2">운동 목록:</h4>
+          <div className="space-y-1">
+            {selectedWorkout.exercises.map((exercise, index) => (
+              <div key={index} className="text-sm text-gray-600">
+                • {exercise.name} ({exercise.sets.length}세트)
+              </div>
+            ))}
           </div>
         </div>
-      </nav>
+        <Button
+          className="w-full mt-3"
+          onClick={() => {
+            setEditWorkout({ ...selectedWorkout });
+            setEditMode(true);
+          }}
+        >
+          운동 기록 수정하기
+        </Button>
+      </div>
+    ) : (
+      <div className="text-center py-4">
+        <p className="text-sm text-gray-500 mb-4">
+          이 날은 운동 기록이 없습니다
+        </p>
+        <Button onClick={handleStartWorkout} className="w-full">
+          <Dumbbell className="h-4 w-4 mr-2" />
+          운동 시작하기
+        </Button>
+      </div>
+    )}
+  </CardContent>
+</Card>
+
+
+      {/* Quick Stats */}
+      <div className="grid grid-cols-2 gap-4">
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <TrendingUp className="h-8 w-8 text-green-600 mx-auto mb-2" />
+            <p className="text-2xl font-bold text-gray-900">{monthlyStats.totalWorkouts}</p>
+            <p className="text-sm text-gray-600">이번 달 운동일</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-6 text-center">
+            <Dumbbell className="h-8 w-8 text-blue-600 mx-auto mb-2" />
+            <p className="text-2xl font-bold text-gray-900">{monthlyStats.totalVolume.toLocaleString()}</p>
+            <p className="text-sm text-gray-600">이번 달 총 볼륨 (kg)</p>
+          </CardContent>
+        </Card>
+      </div>
     </div>
+
+      {/* Bottom Navigation */ }
+  <nav className="fixed bottom-0 left-0 right-0 bg-white border-t">
+    <div className="max-w-md mx-auto px-4 py-2">
+      <div className="flex justify-around">
+        <Link href="/" className="flex flex-col items-center py-2 text-blue-600"><CalendarDays className="h-5 w-5" /><span className="text-xs mt-1">홈</span></Link>
+        <Link href="/history" className="flex flex-col items-center py-2 text-gray-400"><TrendingUp className="h-5 w-5" /><span className="text-xs mt-1">기록</span></Link>
+        <Link href="/profile" className="flex flex-col items-center py-2 text-gray-400"><UserIcon className="h-5 w-5" /><span className="text-xs mt-1">프로필</span></Link>
+      </div>
+    </div>
+  </nav>
+    </div >
   )
 }
